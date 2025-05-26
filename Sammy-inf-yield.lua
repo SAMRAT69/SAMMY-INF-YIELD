@@ -468,3 +468,51 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- Notification function
+function Notify(title, text, duration)
+    local Notification = Instance.new("Frame")
+    Notification.Name = "Notification"
+    Notification.Size = UDim2.new(0.3, 0, 0.1, 0)
+    Notification.Position = UDim2.new(0.35, 0, 0.05, 0)
+    Notification.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    Notification.Parent = SammyHub
+    
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 8)
+    Corner.Parent = Notification
+    
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Name = "TitleLabel"
+    TitleLabel.Size = UDim2.new(0.9, 0, 0.4, 0)
+    TitleLabel.Position = UDim2.new(0.05, 0, 0.1, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = title
+    TitleLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
+    TitleLabel.TextSize = 18
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.Parent = Notification
+    
+    local TextLabel = Instance.new("TextLabel")
+    TextLabel.Name = "TextLabel"
+    TextLabel.Size = UDim2.new(0.9, 0, 0.4, 0)
+    TextLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
+    TextLabel.BackgroundTransparency = 1
+    TextLabel.Text = text
+    TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TextLabel.TextSize = 14
+    TextLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TextLabel.Font = Enum.Font.Gotham
+    TextLabel.Parent = Notification
+    
+    wait(duration)
+    
+    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(Notification, tweenInfo, {Position = UDim2.new(0.35, 0, -0.15, 0)})
+    tween:Play()
+    
+    tween.Completed:Connect(function()
+        Notification:Destroy()
+    end)
+end
+
+Notify("Sammy Hub", "Successfully loaded! Press RightControl to toggle UI.", 5)

@@ -1,5 +1,5 @@
--- Ultimate Smooth Player Lock System
--- By YourName | Best-in-class smoothness & UI
+-- Ultimate Mobile & PC Player Lock System
+-- By YourName | Works on all devices!
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -7,26 +7,31 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 local SoundService = game:GetService("SoundService")
+local ContextActionService = game:GetService("ContextActionService")
 local Player = Players.LocalPlayer
-local Mouse = Player:GetMouse()
+local Camera = workspace.CurrentCamera
 
 --⚙️ CONFIGURATION ⚙️--
 local LockConfig = {
-    LockKey = Enum.UserInputType.MouseButton2, -- Right-click to lock
-    UnlockKey = Enum.UserInputType.MouseButton2, -- Right-click again to unlock
-    ToggleKey = Enum.KeyCode.Q, -- Alternate toggle key
+    -- Controls
+    LockKey = Enum.UserInputType.MouseButton2, -- Right-click (PC)
+    TouchLockButton = true, -- Enable on-screen lock button (Mobile)
+    ToggleKey = Enum.KeyCode.Q, -- Keyboard toggle key (PC)
+    
+    -- Lock Behavior
     LockDistance = 50, -- Max lock-on range
-    Smoothness = 0.15, -- Camera follow smoothness (0.1 = very smooth, 1 = instant)
+    Smoothness = 0.15, -- Camera follow smoothness (0.1 = smooth, 1 = instant)
     TransitionStyle = Enum.EasingStyle.Quint, -- Ultra-smooth easing
-    TransitionDirection = Enum.EasingDirection.Out,
     LockFOV = 65, -- Zoom-in effect when locked
     DefaultFOV = 70, -- Normal FOV
-    LockSound = "rbxassetid://9045567253", -- Cool "lock-on" sound
-    UnlockSound = "rbxassetid://9045567253", -- "Unlock" sound
     Prediction = 0.2, -- Predicts movement for smoother tracking
     BodyParts = {"Head", "UpperTorso", "HumanoidRootPart", "LowerTorso"}, -- Priority order
+    
+    -- UI & Effects
     LockIndicatorColor = Color3.fromRGB(255, 100, 100), -- Red lock-on effect
     LockIndicatorSize = 24, -- Size of the lock-on UI
+    LockSound = "rbxassetid://9045567253", -- Cool "lock-on" sound
+    UnlockSound = "rbxassetid://9045567253", -- "Unlock" sound
     LockShake = 0.5, -- Slight camera shake when locking (0 = none, 1 = strong)
 }
 
@@ -168,6 +173,35 @@ SettingsButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
 SettingsButton.TextColor3 = Color3.new(1, 1, 1)
 SettingsButton.Parent = ScreenGui
 
+--📱 MOBILE TOUCH BUTTON 📱--
+local MobileLockButton
+if LockConfig.TouchLockButton and UserInputService.TouchEnabled then
+    MobileLockButton = Instance.new("TextButton")
+    MobileLockButton.Name = "MobileLockButton"
+    MobileLockButton.Text = "🔒"
+    MobileLockButton.TextSize = 24
+    MobileLockButton.Size = UDim2.new(0, 60, 0, 60)
+    MobileLockButton.Position = UDim2.new(1, -70, 1, -70)
+    MobileLockButton.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    MobileLockButton.TextColor3 = Color3.new(1, 1, 1)
+    MobileLockButton.Parent = ScreenGui
+    
+    local UICorner = Instance.new("UICorner")
+    UICorner.CornerRadius = UDim.new(0.3, 0)
+    UICorner.Parent = MobileLockButton
+    
+    MobileLockButton.MouseButton1Click:Connect(function()
+        if LockState.IsLocked then
+            unlock()
+        else
+            local targetPlayer, targetChar = getTargetPlayer()
+            if targetPlayer then
+                lockOnPlayer(targetPlayer, targetChar)
+            end
+        end
+    end)
+end
+
 --🎯 LOCK-ON FUNCTIONS 🎯--
 local function getTargetPlayer()
     if not Player.Character then return nil end
@@ -175,7 +209,7 @@ local function getTargetPlayer()
     if not rootPart then return nil end
 
     local camera = workspace.CurrentCamera
-    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+    local mousePos = UserInputService:GetMouseLocation()
     local ray = camera:ViewportPointToRay(mousePos.X, mousePos.Y)
 
     local params = RaycastParams.new()
@@ -222,8 +256,8 @@ local function lockOnPlayer(targetPlayer, targetCharacter)
     LockState.IsLocked = true
     LockState.TargetPlayer = targetPlayer
     LockState.TargetPart = targetPart
-    LockState.OriginalCameraCF = workspace.CurrentCamera.CFrame
-    LockState.OriginalCameraType = workspace.CurrentCamera.CameraType
+    LockState.OriginalCameraCF = Camera.CFrame
+    LockState.OriginalCameraType = Camera.CameraType
     LockState.LastPosition = targetPart.Position
 
     -- Play lock sound
@@ -245,12 +279,12 @@ local function lockOnPlayer(targetPlayer, targetCharacter)
 
     -- Smooth FOV transition
     TweenService:Create(
-        workspace.CurrentCamera,
+        Camera,
         TweenInfo.new(0.4, LockConfig.TransitionStyle, LockConfig.TransitionDirection),
         {FieldOfView = LockConfig.LockFOV}
     ):Play()
 
-    workspace.CurrentCamera.CameraType = Enum.CameraType.Scriptable
+    Camera.CameraType = Enum.CameraType.Scriptable
 
     -- Main camera follow loop
     RunService:BindToRenderStep("LockCamera", Enum.RenderPriority.Camera.Value + 1, function(dt)
@@ -260,7 +294,6 @@ local function lockOnPlayer(targetPlayer, targetCharacter)
         end
 
         local targetPos = LockState.TargetPart.Position
-        local camera = workspace.CurrentCamera
 
         -- Movement prediction
         if LockState.LastPosition then
@@ -270,9 +303,9 @@ local function lockOnPlayer(targetPlayer, targetCharacter)
         LockState.LastPosition = targetPos
 
         -- Ultra-smooth camera follow
-        local desiredCF = CFrame.new(camera.CFrame.Position, targetPos)
-        local smoothCF = camera.CFrame:Lerp(desiredCF, LockConfig.Smoothness)
-        camera.CFrame = smoothCF
+        local desiredCF = CFrame.new(Camera.CFrame.Position, targetPos)
+        local smoothCF = Camera.CFrame:Lerp(desiredCF, LockConfig.Smoothness)
+        Camera.CFrame = smoothCF
     end)
 end
 
@@ -295,9 +328,8 @@ local function unlock()
 
     -- Smooth camera return
     if LockState.OriginalCameraCF then
-        local camera = workspace.CurrentCamera
         local tween = TweenService:Create(
-            camera,
+            Camera,
             TweenInfo.new(0.6, LockConfig.TransitionStyle, LockConfig.TransitionDirection),
             {
                 CFrame = LockState.OriginalCameraCF,
@@ -306,37 +338,35 @@ local function unlock()
         )
         tween:Play()
         tween.Completed:Connect(function()
-            camera.CameraType = LockState.OriginalCameraType
+            Camera.CameraType = LockState.OriginalCameraType
         end)
     end
 end
 
---🕹️ INPUT HANDLING 🕹️--
+--🕹️ INPUT HANDLING (PC + Mobile) 🕹️--
+local function handleLockToggle()
+    if LockState.IsLocked then
+        unlock()
+    else
+        local targetPlayer, targetChar = getTargetPlayer()
+        if targetPlayer then
+            lockOnPlayer(targetPlayer, targetChar)
+        end
+    end
+end
+
+-- PC Controls
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
 
-    -- Right-click to lock/unlock
+    -- Right-click to lock/unlock (PC)
     if input.UserInputType == LockConfig.LockKey then
-        if LockState.IsLocked then
-            unlock()
-        else
-            local targetPlayer, targetChar = getTargetPlayer()
-            if targetPlayer then
-                lockOnPlayer(targetPlayer, targetChar)
-            end
-        end
+        handleLockToggle()
     end
 
-    -- Q key to toggle lock
+    -- Q key to toggle lock (PC)
     if input.KeyCode == LockConfig.ToggleKey then
-        if LockState.IsLocked then
-            unlock()
-        else
-            local targetPlayer, targetChar = getTargetPlayer()
-            if targetPlayer then
-                lockOnPlayer(targetPlayer, targetChar)
-            end
-        end
+        handleLockToggle()
     end
 
     -- P key to open settings
